@@ -68,17 +68,15 @@
     <p class="url">tea.montgomerymclain.com</p>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
-    QRCode.toCanvas(
-      document.createElement('canvas'),
-      'https://tea.montgomerymclain.com',
-      { width: 220, margin: 2, color: { dark: '#2c2017', light: '#ffffff' } },
-      (err, canvas) => {
-        if (err) { document.getElementById('qr').textContent = 'Error generating QR code'; return; }
-        document.getElementById('qr').appendChild(canvas);
-      }
-    );
+    new QRCode(document.getElementById('qr'), {
+      text: 'https://tea.montgomerymclain.com',
+      width: 220,
+      height: 220,
+      colorDark: '#2c2017',
+      colorLight: '#ffffff',
+    });
   </script>
 </body>
 </html>
