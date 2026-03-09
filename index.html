@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rachael's Tea Library</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f7f3ee;
+      --surface:   #ffffff;
+      --border:    #e4ddd4;
+      --text:      #2c2017;
+      --muted:     #7a6a59;
+      --accent:    #6b4c2a;
+      --shadow:    0 2px 8px rgba(44,32,23,0.08);
+
+      --black-tea: #4a2c0a;
+      --green-tea: #3a6b3e;
+      --herbal:    #7a5c2e;
+      --white-tea: #8a7560;
+      --oolong:    #b06820;
+      --puerh:     #5c2d6e;
+      --rooibos:   #9e3a1a;
+      --other:     #555;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--accent);
+      color: #fff;
+      padding: 2rem 1.5rem 1.75rem;
+      text-align: center;
+    }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    header p {
+      margin-top: 0.35rem;
+      opacity: 0.75;
+      font-size: 0.95rem;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      max-width: 960px;
+      margin: 1.75rem auto 0;
+      padding: 0 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    #search {
+      width: 100%;
+      padding: 0.65rem 1rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #search:focus { border-color: var(--accent); }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .filter-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-right: 0.25rem;
+    }
+
+    .chip {
+      padding: 0.3rem 0.85rem;
+      border-radius: 999px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    .chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ── Grid ── */
+    .grid-wrapper {
+      max-width: 960px;
+      margin: 1.5rem auto 3rem;
+      padding: 0 1.25rem;
+    }
+
+    .count {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    #tea-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(44,32,23,0.12);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .card-name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      color: #fff;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .badge-Black   { background: var(--black-tea); }
+    .badge-Green   { background: var(--green-tea); }
+    .badge-Herbal  { background: var(--herbal); }
+    .badge-White   { background: var(--white-tea); }
+    .badge-Oolong  { background: var(--oolong); }
+    .badge-Puerh, .badge-Pu-erh { background: var(--puerh); }
+    .badge-Rooibos { background: var(--rooibos); }
+    .badge-Other, .badge-other { background: var(--other); }
+
+    .card-meta {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .card-notes {
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* ── Empty / Loading states ── */
+    .state-msg {
+      text-align: center;
+      padding: 4rem 1rem;
+      color: var(--muted);
+      font-size: 1rem;
+      grid-column: 1 / -1;
+    }
+    .state-msg strong { display: block; font-size: 1.2rem; margin-bottom: 0.5rem; color: var(--text); }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      header h1 { font-size: 1.6rem; }
+      #tea-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Tea Library</h1>
+  <p>Browse the collection</p>
+</header>
+
+<div class="controls">
+  <input type="search" id="search" placeholder="Search by name or notes…" autocomplete="off">
+  <div class="filter-row">
+    <span class="filter-label">Type</span>
+    <div id="type-filters"></div>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label">Format</span>
+    <div id="format-filters"></div>
+  </div>
+</div>
+
+<div class="grid-wrapper">
+  <div class="count" id="count"></div>
+  <div id="tea-grid">
+    <div class="state-msg"><strong>Loading…</strong>Fetching the tea collection.</div>
+  </div>
+</div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  // To update the source, replace this with your own published CSV URL
+  // (Google Sheet → File → Share → Publish to web → CSV).
+  const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSFYsUa4iCQBSmDcT-AujntNHorykeh0kDT6R1eyh_jejRsTPPgwBIM3UOM2RmUapNeZunx6O0XjYpo/pub?output=csv';
+  // CORS proxy used when the direct URL is blocked (e.g. opening as a local file).
+  const PROXY_URL = 'https://corsproxy.io/?' + encodeURIComponent(SHEET_CSV);
+
+  // ── State ────────────────────────────────────────────────────────────────────
+  let allTeas = [];
+  let activeType   = 'All';
+  let activeFormat = 'All';
+
+  // ── CSV parser (handles quoted fields) ───────────────────────────────────────
+  function parseCSV(text) {
+    const rows = [];
+    for (const rawLine of text.trim().split('\n')) {
+      const line = rawLine.replace(/\r$/, '');
+      const cells = [];
+      let inQuote = false, cell = '';
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuote && line[i + 1] === '"') { cell += '"'; i++; }
+          else inQuote = !inQuote;
+        } else if (ch === ',' && !inQuote) {
+          cells.push(cell.trim()); cell = '';
+        } else {
+          cell += ch;
+        }
+      }
+      cells.push(cell.trim());
+      rows.push(cells);
+    }
+    return rows;
+  }
+
+  // ── Fetch & initialise ────────────────────────────────────────────────────────
+  async function fetchCSV() {
+    // Try direct first; fall back to CORS proxy if blocked.
+    try {
+      const res = await fetch(SHEET_CSV);
+      if (res.ok) return res.text();
+    } catch (_) { /* fall through */ }
+    const res = await fetch(PROXY_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.text();
+  }
+
+  async function loadTeas() {
+    try {
+      const text = await fetchCSV();
+      const rows = parseCSV(text);
+
+      if (rows.length < 2) throw new Error('Sheet appears empty');
+
+      // Build header index so column order doesn't matter
+      const headers = rows[0].map(h => h.trim().toLowerCase());
+      const idx = h => headers.indexOf(h);
+
+      allTeas = rows.slice(1)
+        .filter(r => r.some(c => c))            // skip blank rows
+        .map(r => ({
+          name:   r[idx('name')]   || '',
+          type:   r[idx('type')]   || 'Other',
+          format: r[idx('format')] || '',
+          notes:  r[idx('notes')]  || '',
+        }));
+
+      buildFilters();
+      render();
+    } catch (err) {
+      document.getElementById('tea-grid').innerHTML =
+        `<div class="state-msg"><strong>Could not load teas</strong>
+         Make sure the sheet is published to the web (File → Share → Publish to web → CSV).<br><br>
+         <small style="font-family:monospace">${err.message}</small></div>`;
+    }
+  }
+
+  // ── Build filter chips ────────────────────────────────────────────────────────
+  function buildFilters() {
+    const types   = ['All', ...new Set(allTeas.map(t => t.type).filter(Boolean).sort())];
+    const formats = ['All', ...new Set(allTeas.map(t => t.format).filter(Boolean).sort())];
+
+    renderChips('type-filters',   types,   activeType,   v => { activeType = v;   render(); });
+    renderChips('format-filters', formats, activeFormat, v => { activeFormat = v; render(); });
+  }
+
+  function renderChips(containerId, values, active, onClick) {
+    const el = document.getElementById(containerId);
+    el.style.display = 'flex';
+    el.style.flexWrap = 'wrap';
+    el.style.gap = '0.5rem';
+    el.innerHTML = values.map(v =>
+      `<button class="chip${v === active ? ' active' : ''}" data-val="${v}">${v}</button>`
+    ).join('');
+    el.querySelectorAll('.chip').forEach(btn =>
+      btn.addEventListener('click', () => {
+        onClick(btn.dataset.val);
+        el.querySelectorAll('.chip').forEach(b => b.classList.toggle('active', b === btn));
+      })
+    );
+  }
+
+  // ── Render cards ─────────────────────────────────────────────────────────────
+  function render() {
+    const query = document.getElementById('search').value.trim().toLowerCase();
+    const grid  = document.getElementById('tea-grid');
+    const count = document.getElementById('count');
+
+    const filtered = allTeas.filter(t => {
+      if (activeType   !== 'All' && t.type   !== activeType)   return false;
+      if (activeFormat !== 'All' && t.format !== activeFormat) return false;
+      if (query && !`${t.name} ${t.notes}`.toLowerCase().includes(query)) return false;
+      return true;
+    });
+
+    count.textContent = filtered.length === allTeas.length
+      ? `${allTeas.length} teas`
+      : `${filtered.length} of ${allTeas.length} teas`;
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="state-msg"><strong>No results</strong>Try a different search or filter.</div>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.map(t => {
+      const badgeClass = `badge badge-${t.type.replace(/\s+/g, '')}`;
+      const meta = t.format ? `<div class="card-meta">${t.format}</div>` : '';
+      const notes = t.notes ? `<div class="card-notes">${escHtml(t.notes)}</div>` : '';
+      return `
+        <div class="card">
+          <div class="card-top">
+            <div class="card-name">${escHtml(t.name)}</div>
+            <span class="${escHtml(badgeClass)}">${escHtml(t.type)}</span>
+          </div>
+          ${meta}
+          ${notes}
+        </div>`;
+    }).join('');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Wire up search ────────────────────────────────────────────────────────────
+  document.getElementById('search').addEventListener('input', render);
+
+  // ── Go ────────────────────────────────────────────────────────────────────────
+  loadTeas();
+</script>
+
+</body>
+</html>
