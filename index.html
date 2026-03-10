@@ -178,7 +178,28 @@
     .card-meta {
       font-size: 0.82rem;
       color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
     }
+    .stock-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.82rem;
+    }
+    .stock-dot::before {
+      content: '';
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+    .stock-dot.in::before  { background: #3a6b3e; }
+    .stock-dot.out::before { background: #aaa; }
+    .stock-dot.in  { color: #3a6b3e; }
+    .stock-dot.out { color: #aaa; }
     .card-notes {
       font-size: 0.9rem;
       color: var(--text);
@@ -219,6 +240,10 @@
     <span class="filter-label">Format</span>
     <div id="format-filters"></div>
   </div>
+  <div class="filter-row">
+    <span class="filter-label">Stock</span>
+    <div id="stock-filters"></div>
+  </div>
 </div>
 
 <div class="grid-wrapper">
@@ -240,6 +265,7 @@
   let allTeas = [];
   let activeType   = 'All';
   let activeFormat = 'All';
+  let activeStock  = 'All';
 
   // ── CSV parser (handles quoted fields) ───────────────────────────────────────
   function parseCSV(text) {
@@ -291,10 +317,11 @@
       allTeas = rows.slice(1)
         .filter(r => r.some(c => c))            // skip blank rows
         .map(r => ({
-          name:   r[idx('name')]   || '',
-          type:   r[idx('type')]   || 'Other',
-          format: r[idx('format')] || '',
-          notes:  r[idx('notes')]  || '',
+          name:    r[idx('name')]   || '',
+          type:    r[idx('type')]   || 'Other',
+          format:  r[idx('format')] || '',
+          notes:   r[idx('notes')]  || '',
+          inStock: (r[idx('in stock')] || '').toUpperCase() === 'TRUE',
         }));
 
       buildFilters();
@@ -312,8 +339,9 @@
     const types   = ['All', ...new Set(allTeas.map(t => t.type).filter(Boolean).sort())];
     const formats = ['All', ...new Set(allTeas.map(t => t.format).filter(Boolean).sort())];
 
-    renderChips('type-filters',   types,   activeType,   v => { activeType = v;   render(); });
-    renderChips('format-filters', formats, activeFormat, v => { activeFormat = v; render(); });
+    renderChips('type-filters',   types,                    activeType,   v => { activeType = v;   render(); });
+    renderChips('format-filters', formats,                  activeFormat, v => { activeFormat = v; render(); });
+    renderChips('stock-filters',  ['All', 'In Stock', 'Out of Stock'], activeStock,  v => { activeStock = v;  render(); });
   }
 
   function renderChips(containerId, values, active, onClick) {
@@ -341,6 +369,8 @@
     const filtered = allTeas.filter(t => {
       if (activeType   !== 'All' && t.type   !== activeType)   return false;
       if (activeFormat !== 'All' && t.format !== activeFormat) return false;
+      if (activeStock  === 'In Stock'     && !t.inStock)       return false;
+      if (activeStock  === 'Out of Stock' &&  t.inStock)       return false;
       if (query && !`${t.name} ${t.notes}`.toLowerCase().includes(query)) return false;
       return true;
     });
@@ -356,7 +386,9 @@
 
     grid.innerHTML = filtered.map(t => {
       const badgeClass = `badge badge-${t.type.replace(/\s+/g, '')}`;
-      const meta = t.format ? `<div class="card-meta">${t.format}</div>` : '';
+      const stockHtml = `<span class="stock-dot ${t.inStock ? 'in' : 'out'}">${t.inStock ? 'In stock' : 'Out of stock'}</span>`;
+      const metaContent = [t.format ? escHtml(t.format) : '', stockHtml].filter(Boolean).join('<span style="color:var(--border)">·</span>');
+      const meta = `<div class="card-meta">${metaContent}</div>`;
       const notes = t.notes ? `<div class="card-notes">${escHtml(t.notes)}</div>` : '';
       return `
         <div class="card">
