@@ -74,6 +74,19 @@
     }
     #search:focus { border-color: var(--accent); }
 
+    #sort {
+      padding: 0.3rem 0.75rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #sort:focus { border-color: var(--accent); }
+
     .filter-row {
       display: flex;
       flex-wrap: wrap;
@@ -244,6 +257,15 @@
     <span class="filter-label">Stock</span>
     <div id="stock-filters"></div>
   </div>
+  <div class="filter-row">
+    <span class="filter-label">Sort</span>
+    <select id="sort">
+      <option value="name">Name</option>
+      <option value="type">Type</option>
+      <option value="format">Format</option>
+      <option value="stock">Stock</option>
+    </select>
+  </div>
 </div>
 
 <div class="grid-wrapper">
@@ -375,6 +397,14 @@
       return true;
     });
 
+    const sortBy = document.getElementById('sort').value;
+    filtered.sort((a, b) => {
+      if (sortBy === 'type')   return a.type.localeCompare(b.type)   || a.name.localeCompare(b.name);
+      if (sortBy === 'format') return a.format.localeCompare(b.format) || a.name.localeCompare(b.name);
+      if (sortBy === 'stock')  return b.inStock - a.inStock           || a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name); // default: name
+    });
+
     count.textContent = filtered.length === allTeas.length
       ? `${allTeas.length} teas`
       : `${filtered.length} of ${allTeas.length} teas`;
@@ -406,8 +436,9 @@
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // ── Wire up search ────────────────────────────────────────────────────────────
+  // ── Wire up search & sort ─────────────────────────────────────────────────────
   document.getElementById('search').addEventListener('input', render);
+  document.getElementById('sort').addEventListener('change', render);
 
   // ── Go ────────────────────────────────────────────────────────────────────────
   loadTeas();
