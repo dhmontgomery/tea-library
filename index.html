@@ -321,7 +321,7 @@
           type:    r[idx('type')]   || 'Other',
           format:  r[idx('format')] || '',
           notes:   r[idx('notes')]  || '',
-          inStock: (r[idx('in stock')] || '').toUpperCase() === 'TRUE',
+          inStock: (r[idx('in stock')] || '').toUpperCase() === 'YES',
         }));
 
       buildFilters();
