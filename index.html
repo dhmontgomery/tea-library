@@ -77,7 +77,7 @@
     }
     #search:focus { border-color: var(--accent); }
 
-    #sort {
+    #sort, #brand-select {
       padding: 0.3rem 0.75rem;
       border: 1.5px solid var(--border);
       border-radius: 8px;
@@ -88,7 +88,8 @@
       outline: none;
       transition: border-color 0.15s;
     }
-    #sort:focus { border-color: var(--accent); }
+    #sort:focus, #brand-select:focus { border-color: var(--accent); }
+    #brand-select { max-width: 100%; }
 
     .filter-row {
       display: flex;
@@ -225,9 +226,7 @@
       height: 7px;
       border-radius: 50%;
     }
-    .stock-dot.in::before  { background: #3a6b3e; }
     .stock-dot.out::before { background: #aaa; }
-    .stock-dot.in  { color: #3a6b3e; }
     .stock-dot.out { color: #aaa; }
     .card-notes {
       font-size: 0.9rem;
@@ -271,7 +270,9 @@
   </div>
   <div class="filter-row">
     <span class="filter-label">Brand</span>
-    <div id="brand-filters"></div>
+    <select id="brand-select" aria-label="Brand">
+      <option value="All">All brands</option>
+    </select>
   </div>
   <div class="filter-row">
     <span class="filter-label">Tags</span>
@@ -314,7 +315,7 @@
   let activeFormat = 'All';
   let activeBrand  = 'All';
   let activeTag    = 'All';   // 'Favorites' or one of the sheet's tags
-  let activeStock  = 'All';
+  let activeStock  = 'In Stock';
 
   // ── CSV parser (handles quoted fields) ───────────────────────────────────────
   function parseCSV(text) {
@@ -368,6 +369,7 @@
         .map(r => ({
           name:    r[idx('name')]   || '',
           brand:   r[idx('brand')]  || '',
+          location: r[idx('location')] || '',   // display only (e.g. "Top shelf")
           type:    r[idx('type')]   || 'Other',
           format:  r[idx('format')] || '',
           notes:   r[idx('notes')]  || '',
@@ -399,9 +401,12 @@
 
     renderChips('type-filters',   types,                    activeType,   v => { activeType = v;   render(); });
     renderChips('format-filters', formats,                  activeFormat, v => { activeFormat = v; render(); });
-    renderChips('brand-filters',  brands,                   activeBrand,  v => { activeBrand = v;  render(); });
+    const brandSelect = document.getElementById('brand-select');
+    brandSelect.innerHTML = brands.map(b =>
+      `<option value="${escHtml(b)}"${b === activeBrand ? ' selected' : ''}>${b === 'All' ? 'All brands' : escHtml(b)}</option>`
+    ).join('');
     // Hide the Brand row until the sheet has a Brand column with values
-    document.getElementById('brand-filters').parentElement.style.display = brands.length > 1 ? '' : 'none';
+    brandSelect.parentElement.style.display = brands.length > 1 ? '' : 'none';
     renderChips('tag-filters',    tags,                     activeTag,    v => { activeTag = v;    render(); });
     document.getElementById('tag-filters').parentElement.style.display = tags.length > 1 ? '' : 'none';
     renderChips('stock-filters',  ['All', 'In Stock', 'Out of Stock'], activeStock,  v => { activeStock = v;  render(); });
@@ -462,8 +467,9 @@
 
     grid.innerHTML = filtered.map(t => {
       const badgeClass = `badge badge-${t.type.replace(/\s+/g, '')}`;
-      const stockHtml = `<span class="stock-dot ${t.inStock ? 'in' : 'out'}">${t.inStock ? 'In stock' : 'Out of stock'}</span>`;
-      const metaContent = [t.brand ? escHtml(t.brand) : '', t.format ? escHtml(t.format) : '', stockHtml].filter(Boolean).join('<span style="color:var(--border)">·</span>');
+      // Nearly everything is in stock, so only flag the exceptions
+      const stockHtml = t.inStock ? '' : '<span class="stock-dot out">Out of stock</span>';
+      const metaContent = [t.brand ? escHtml(t.brand) : '', t.format ? escHtml(t.format) : '', t.location ? escHtml(t.location) : '', stockHtml].filter(Boolean).join('<span style="color:var(--border)">·</span>');
       const meta = `<div class="card-meta">${metaContent}</div>`;
       const notes = t.notes ? `<div class="card-notes">${escHtml(t.notes)}</div>` : '';
       return `
@@ -485,6 +491,7 @@
   // ── Wire up search & sort ─────────────────────────────────────────────────────
   document.getElementById('search').addEventListener('input', render);
   document.getElementById('sort').addEventListener('change', render);
+  document.getElementById('brand-select').addEventListener('change', e => { activeBrand = e.target.value; render(); });
 
   // ── Go ────────────────────────────────────────────────────────────────────────
   loadTeas();

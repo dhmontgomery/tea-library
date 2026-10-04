@@ -18,9 +18,9 @@ Deploying is just pushing to `main` (GitHub Pages).
 ## Data flow (index.html)
 
 - **Source of truth is a Google Sheet**, not this repo. `SHEET_CSV` points at the sheet's "Publish to web → CSV" URL. Adding/editing teas happens in the sheet; no code change needed.
-- Columns are looked up **by header name (case-insensitive), not position**: `Name`, `Brand`, `Type`, `Format`, `Notes`, `In Stock`, `Tags`, `Favorite`. Any column may be missing (the Brand and Tags filter rows hide themselves when empty). `Tags` is comma/semicolon-separated (slashes are part of a tag, e.g. `Sweet / dessert`); `Favorite` is any mark (`X`, `Yes`…) except blank/No. `In Stock` is truthy only when the cell is `Yes` (case-insensitive). Missing `Type` defaults to `Other`.
+- Columns are looked up **by header name (case-insensitive), not position**: `Name`, `Brand`, `Type`, `Format`, `Notes`, `In Stock`, `Tags`, `Favorite`, `Location`. Any column may be missing (the Brand and Tags filter rows hide themselves when empty). `Location` (e.g. `Top shelf`) is display-only on cards, not a filter or sort. `Tags` is comma/semicolon-separated (slashes are part of a tag, e.g. `Sweet / dessert`); `Favorite` is any mark (`X`, `Yes`…) except blank/No. `In Stock` is truthy only when the cell is `Yes` (case-insensitive). Missing `Type` defaults to `Other`.
 - `parseCSV` is a hand-rolled parser that handles quoted fields and `""` escapes but splits on newlines first, so **multi-line cell values will break parsing**.
-- State is a few module-level globals (`allTeas`, `activeType`, `activeFormat`, `activeBrand`, `activeTag`, `activeStock`). `buildFilters()` derives the Type/Format/Brand/Tags chip sets (Tags gets a synthetic `Favorites` chip) from the data once; `render()` re-filters, sorts, and rebuilds the whole grid via `innerHTML` on every change.
+- State is a few module-level globals (`allTeas`, `activeType`, `activeFormat`, `activeBrand`, `activeTag`, `activeStock` — defaults to `In Stock`). `buildFilters()` derives the Type/Format/Tags chip sets (Tags gets a synthetic `Favorites` chip) and the Brand dropdown options from the data once; `render()` re-filters, sorts, and rebuilds the whole grid via `innerHTML` on every change.
 - User-supplied sheet text must go through `escHtml()` before being inserted into HTML.
 
 ## Styling conventions
