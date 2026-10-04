@@ -23,7 +23,10 @@
       --oolong:    #b06820;
       --puerh:     #4a2070;
       --rooibos:   #9e3a1a;
+      --mate:      #6b7a2a;
       --other:     #555;
+
+      --favorite:  #c9a227;
     }
 
     body {
@@ -156,6 +159,18 @@
       box-shadow: 0 6px 16px rgba(30,20,40,0.12);
     }
 
+    .card.favorite {
+      border-color: var(--favorite);
+      box-shadow: 0 0 0 1.5px var(--favorite), var(--shadow);
+    }
+    .card.favorite:hover {
+      box-shadow: 0 0 0 1.5px var(--favorite), 0 6px 16px rgba(30,20,40,0.12);
+    }
+    .fav-star {
+      color: var(--favorite);
+      margin-right: 0.3rem;
+    }
+
     .card-top {
       display: flex;
       justify-content: space-between;
@@ -186,6 +201,7 @@
     .badge-Oolong  { background: var(--oolong); }
     .badge-Puerh, .badge-Pu-erh { background: var(--puerh); }
     .badge-Rooibos { background: var(--rooibos); }
+    .badge-Maté, .badge-Mate { background: var(--mate); }
     .badge-Other, .badge-other { background: var(--other); }
 
     .card-meta {
@@ -244,7 +260,7 @@
 </header>
 
 <div class="controls">
-  <input type="search" id="search" placeholder="Search by name or notes…" autocomplete="off">
+  <input type="search" id="search" placeholder="Search by name, brand or notes…" autocomplete="off">
   <div class="filter-row">
     <span class="filter-label">Type</span>
     <div id="type-filters"></div>
@@ -252,6 +268,14 @@
   <div class="filter-row">
     <span class="filter-label">Format</span>
     <div id="format-filters"></div>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label">Brand</span>
+    <div id="brand-filters"></div>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label">Tags</span>
+    <div id="tag-filters"></div>
   </div>
   <div class="filter-row">
     <span class="filter-label">Stock</span>
@@ -262,6 +286,7 @@
     <select id="sort">
       <option value="name">Name</option>
       <option value="type">Type</option>
+      <option value="brand">Brand</option>
       <option value="format">Format</option>
       <option value="stock">Stock</option>
     </select>
@@ -287,6 +312,8 @@
   let allTeas = [];
   let activeType   = 'All';
   let activeFormat = 'All';
+  let activeBrand  = 'All';
+  let activeTag    = 'All';   // 'Favorites' or one of the sheet's tags
   let activeStock  = 'All';
 
   // ── CSV parser (handles quoted fields) ───────────────────────────────────────
@@ -340,10 +367,15 @@
         .filter(r => r.some(c => c))            // skip blank rows
         .map(r => ({
           name:    r[idx('name')]   || '',
+          brand:   r[idx('brand')]  || '',
           type:    r[idx('type')]   || 'Other',
           format:  r[idx('format')] || '',
           notes:   r[idx('notes')]  || '',
           inStock: (r[idx('in stock')] || '').toUpperCase() === 'YES',
+          // Tags: comma- or semicolon-separated ("Sweet / dessert" is one tag)
+          tags:    (r[idx('tags')] || '').split(/[,;]/).map(s => s.trim()).filter(Boolean),
+          // Favorite: any mark ("X", "Yes", …) except an explicit no
+          favorite: !['', 'NO', 'N', 'FALSE', '0'].includes((r[idx('favorite')] || '').trim().toUpperCase()),
         }));
 
       buildFilters();
@@ -360,9 +392,18 @@
   function buildFilters() {
     const types   = ['All', ...new Set(allTeas.map(t => t.type).filter(Boolean).sort())];
     const formats = ['All', ...new Set(allTeas.map(t => t.format).filter(Boolean).sort())];
+    const brands  = ['All', ...new Set(allTeas.map(t => t.brand).filter(Boolean).sort())];
+    const tags    = ['All',
+      ...(allTeas.some(t => t.favorite) ? ['Favorites'] : []),
+      ...[...new Set(allTeas.flatMap(t => t.tags))].filter(t => t !== 'Favorites').sort()];
 
     renderChips('type-filters',   types,                    activeType,   v => { activeType = v;   render(); });
     renderChips('format-filters', formats,                  activeFormat, v => { activeFormat = v; render(); });
+    renderChips('brand-filters',  brands,                   activeBrand,  v => { activeBrand = v;  render(); });
+    // Hide the Brand row until the sheet has a Brand column with values
+    document.getElementById('brand-filters').parentElement.style.display = brands.length > 1 ? '' : 'none';
+    renderChips('tag-filters',    tags,                     activeTag,    v => { activeTag = v;    render(); });
+    document.getElementById('tag-filters').parentElement.style.display = tags.length > 1 ? '' : 'none';
     renderChips('stock-filters',  ['All', 'In Stock', 'Out of Stock'], activeStock,  v => { activeStock = v;  render(); });
   }
 
@@ -372,7 +413,7 @@
     el.style.flexWrap = 'wrap';
     el.style.gap = '0.5rem';
     el.innerHTML = values.map(v =>
-      `<button class="chip${v === active ? ' active' : ''}" data-val="${v}">${v}</button>`
+      `<button class="chip${v === active ? ' active' : ''}" data-val="${escHtml(v)}">${escHtml(v)}</button>`
     ).join('');
     el.querySelectorAll('.chip').forEach(btn =>
       btn.addEventListener('click', () => {
@@ -391,15 +432,20 @@
     const filtered = allTeas.filter(t => {
       if (activeType   !== 'All' && t.type   !== activeType)   return false;
       if (activeFormat !== 'All' && t.format !== activeFormat) return false;
+      if (activeBrand  !== 'All' && t.brand  !== activeBrand)  return false;
+      if (activeTag === 'Favorites' && !t.favorite)            return false;
+      if (activeTag !== 'All' && activeTag !== 'Favorites' && !t.tags.includes(activeTag)) return false;
       if (activeStock  === 'In Stock'     && !t.inStock)       return false;
       if (activeStock  === 'Out of Stock' &&  t.inStock)       return false;
-      if (query && !`${t.name} ${t.notes}`.toLowerCase().includes(query)) return false;
+      if (query && !`${t.name} ${t.brand} ${t.notes}`.toLowerCase().includes(query)) return false;
       return true;
     });
 
     const sortBy = document.getElementById('sort').value;
     filtered.sort((a, b) => {
       if (sortBy === 'type')   return a.type.localeCompare(b.type)   || a.name.localeCompare(b.name);
+      // Teas without a brand sort after branded ones
+      if (sortBy === 'brand')  return (!a.brand - !b.brand) || a.brand.localeCompare(b.brand) || a.name.localeCompare(b.name);
       if (sortBy === 'format') return a.format.localeCompare(b.format) || a.name.localeCompare(b.name);
       if (sortBy === 'stock')  return b.inStock - a.inStock           || a.name.localeCompare(b.name);
       return a.name.localeCompare(b.name); // default: name
@@ -417,13 +463,13 @@
     grid.innerHTML = filtered.map(t => {
       const badgeClass = `badge badge-${t.type.replace(/\s+/g, '')}`;
       const stockHtml = `<span class="stock-dot ${t.inStock ? 'in' : 'out'}">${t.inStock ? 'In stock' : 'Out of stock'}</span>`;
-      const metaContent = [t.format ? escHtml(t.format) : '', stockHtml].filter(Boolean).join('<span style="color:var(--border)">·</span>');
+      const metaContent = [t.brand ? escHtml(t.brand) : '', t.format ? escHtml(t.format) : '', stockHtml].filter(Boolean).join('<span style="color:var(--border)">·</span>');
       const meta = `<div class="card-meta">${metaContent}</div>`;
       const notes = t.notes ? `<div class="card-notes">${escHtml(t.notes)}</div>` : '';
       return `
-        <div class="card">
+        <div class="card${t.favorite ? ' favorite' : ''}">
           <div class="card-top">
-            <div class="card-name">${escHtml(t.name)}</div>
+            <div class="card-name">${t.favorite ? '<span class="fav-star" title="Favorite" aria-label="Favorite">★</span>' : ''}${escHtml(t.name)}</div>
             <span class="${escHtml(badgeClass)}">${escHtml(t.type)}</span>
           </div>
           ${meta}
